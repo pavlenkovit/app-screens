@@ -1,5 +1,6 @@
 import { toPng } from "html-to-image";
 import JSZip from "jszip";
+import { APP_LANG_CODES, type AppLangCode } from "@/lib/app-languages";
 
 type HtmlToImageOptions = NonNullable<Parameters<typeof toPng>[1]>;
 
@@ -13,6 +14,31 @@ const PNG_BASE: HtmlToImageOptions = {
   skipFonts: true,
   backgroundColor: "#000000",
 };
+
+/** Лимит html-to-image / canvas по стороне (~16k). */
+const MAX_CANVAS_EDGE = 16384;
+/** Верхняя граница pixelRatio (память и время экспорта). */
+const MAX_PIXEL_RATIO = 12;
+
+/**
+ * Карточка в вёрстке узкая; без достаточного pixelRatio снимок апскейлится до размеров стора и мылится.
+ * Берём ceil от max(outW/w, outH/h), чтобы растр с html-to-image был не меньше целевого кадра.
+ */
+function pixelRatioForStoreExport(
+  el: HTMLElement,
+  outW: number,
+  outH: number,
+): number {
+  const w = Math.max(1, el.offsetWidth);
+  const h = Math.max(1, el.offsetHeight);
+  const need = Math.max(outW / w, outH / h) * 1.03;
+  let pr = Math.max(1, Math.ceil(need));
+  const maxByEdge = Math.floor(MAX_CANVAS_EDGE / Math.max(w, h));
+  if (Number.isFinite(maxByEdge) && maxByEdge >= 1) {
+    pr = Math.min(pr, maxByEdge);
+  }
+  return Math.min(MAX_PIXEL_RATIO, pr);
+}
 
 function loadImageFromDataUrl(dataUrl: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -32,10 +58,10 @@ async function captureCardToStoreSize(
   outW: number,
   outH: number,
 ): Promise<string> {
+  const pixelRatio = pixelRatioForStoreExport(el, outW, outH);
   const rawDataUrl = await toPng(el, {
     ...PNG_BASE,
-    /** Чуть выше, чем 1×, чтобы при масштабе до размеров стора текст и мокап не «мылились». */
-    pixelRatio: 2,
+    pixelRatio,
   });
 
   const img = await loadImageFromDataUrl(rawDataUrl);
@@ -69,41 +95,50 @@ function dataUrlToBase64(dataUrl: string): string {
   return dataUrl.slice(i + 1);
 }
 
+export type LangCardRefs = {
+  mobile: (HTMLElement | null)[];
+  tablet: (HTMLElement | null)[];
+};
+
 export async function buildScreensZip(
-  mobileCards: (HTMLElement | null)[],
-  tabletCards: (HTMLElement | null)[],
+  byLang: Record<AppLangCode, LangCardRefs>,
 ): Promise<Blob> {
   const zip = new JSZip();
-  const folder = zip.folder("app-screens");
+  const root = zip.folder("app-screens");
 
-  for (let i = 0; i < mobileCards.length; i++) {
-    const el = mobileCards[i];
-    if (!el) continue;
-    const dataUrl = await captureCardToStoreSize(
-      el,
-      EXPORT_SIZE_MOBILE.width,
-      EXPORT_SIZE_MOBILE.height,
-    );
-    folder?.file(
-      `mobile-${String(i + 1).padStart(2, "0")}.png`,
-      dataUrlToBase64(dataUrl),
-      { base64: true },
-    );
-  }
+  for (const lang of APP_LANG_CODES) {
+    const folder = root?.folder(lang);
+    const { mobile, tablet } = byLang[lang];
 
-  for (let i = 0; i < tabletCards.length; i++) {
-    const el = tabletCards[i];
-    if (!el) continue;
-    const dataUrl = await captureCardToStoreSize(
-      el,
-      EXPORT_SIZE_TABLET.width,
-      EXPORT_SIZE_TABLET.height,
-    );
-    folder?.file(
-      `tablet-${String(i + 1).padStart(2, "0")}.png`,
-      dataUrlToBase64(dataUrl),
-      { base64: true },
-    );
+    for (let i = 0; i < mobile.length; i++) {
+      const el = mobile[i];
+      if (!el) continue;
+      const dataUrl = await captureCardToStoreSize(
+        el,
+        EXPORT_SIZE_MOBILE.width,
+        EXPORT_SIZE_MOBILE.height,
+      );
+      folder?.file(
+        `mobile-${String(i + 1).padStart(2, "0")}.png`,
+        dataUrlToBase64(dataUrl),
+        { base64: true },
+      );
+    }
+
+    for (let i = 0; i < tablet.length; i++) {
+      const el = tablet[i];
+      if (!el) continue;
+      const dataUrl = await captureCardToStoreSize(
+        el,
+        EXPORT_SIZE_TABLET.width,
+        EXPORT_SIZE_TABLET.height,
+      );
+      folder?.file(
+        `tablet-${String(i + 1).padStart(2, "0")}.png`,
+        dataUrlToBase64(dataUrl),
+        { base64: true },
+      );
+    }
   }
 
   return zip.generateAsync({ type: "blob" });
