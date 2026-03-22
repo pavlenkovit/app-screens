@@ -1,18 +1,27 @@
 import { toPng } from "html-to-image";
 import JSZip from "jszip";
 import { APP_LANG_CODES, type AppLangCode } from "@/lib/app-languages";
+import {
+  EXPORT_SIZE_MOBILE,
+  EXPORT_SIZE_TABLET,
+} from "@/lib/export-dimensions";
+
+export { EXPORT_SIZE_MOBILE, EXPORT_SIZE_TABLET } from "@/lib/export-dimensions";
 
 type HtmlToImageOptions = NonNullable<Parameters<typeof toPng>[1]>;
 
-/** Размеры файла для сторов (px). Картинка — как на экране, вписанная в этот кадр. */
-export const EXPORT_SIZE_MOBILE = { width: 1242, height: 2688 } as const;
-export const EXPORT_SIZE_TABLET = { width: 2064, height: 2752 } as const;
-
-/** См. html-to-image: cacheBust ломает blob: URL; skipFonts — без CORS на внешние шрифты. */
+/**
+ * skipFonts: true — иначе html-to-image обходит все document.styleSheets; листы с
+ * fonts.googleapis.com (часто Open Sans от расширений браузера) дают SecurityError.
+ * Шрифт на снимке задаём явно — совпадает с next/font Roboto на странице.
+ */
 const PNG_BASE: HtmlToImageOptions = {
   cacheBust: false,
   skipFonts: true,
   backgroundColor: "#000000",
+  style: {
+    fontFamily: '"Roboto", ui-sans-serif, system-ui, sans-serif',
+  },
 };
 
 /** Лимит html-to-image / canvas по стороне (~16k). */

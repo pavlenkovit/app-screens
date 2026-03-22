@@ -20,10 +20,34 @@ import {
   type LangImages,
   type PersistedComposerState,
 } from "@/lib/screens-storage";
+import {
+  EXPORT_SIZE_MOBILE,
+  EXPORT_SIZE_TABLET,
+} from "@/lib/export-dimensions";
 import { translateToTargets } from "@/lib/translate-client";
 import { DeviceMockup } from "./device-mockup";
 
 const SLOT_COUNT = SCREENS_SLOT_COUNT;
+
+/** На карточке и в PNG — не больше двух строк (по `\n`); блок заголовка фиксированной высоты. */
+const SLIDE_TITLE_MAX_LINES = 2;
+
+function clampSlideTitleLines(text: string): string {
+  const lines = text.split(/\r?\n/);
+  if (lines.length <= SLIDE_TITLE_MAX_LINES) return text;
+  return lines.slice(0, SLIDE_TITLE_MAX_LINES).join("\n");
+}
+
+function clampTitlesRecord(
+  r: Record<AppLangCode, string[]>,
+): Record<AppLangCode, string[]> {
+  return Object.fromEntries(
+    APP_LANG_CODES.map((lang) => [
+      lang,
+      r[lang].map(clampSlideTitleLines),
+    ]),
+  ) as Record<AppLangCode, string[]>;
+}
 
 function emptyStrings(n: number) {
   return Array.from({ length: n }, () => "");
@@ -153,7 +177,7 @@ export function StorePreviewGrid() {
         }
         setSourceLang(next.sourceLang);
         setTargetLangs(sortTargets(next.targetLangs));
-        setTitles(next.titles);
+        setTitles(clampTitlesRecord(next.titles));
         setTranslateFingerprint(next.translateFingerprint);
         setMobileSrcByLang({
           ...Object.fromEntries(
@@ -263,7 +287,7 @@ export function StorePreviewGrid() {
       setTitles((prev) => {
         const next = { ...prev };
         for (const t of targetLangs) {
-          next[t] = result[t];
+          next[t] = result[t].map(clampSlideTitleLines);
         }
         return next;
       });
@@ -303,9 +327,10 @@ export function StorePreviewGrid() {
 
   const setSourceTitle = useCallback(
     (index: number, value: string) => {
+      const v = clampSlideTitleLines(value);
       setTitles((prev) => {
         const next = { ...prev, [sourceLang]: [...prev[sourceLang]] };
-        next[sourceLang][index] = value;
+        next[sourceLang][index] = v;
         return next;
       });
     },
@@ -602,11 +627,11 @@ export function StorePreviewGrid() {
                   </label>
                   <textarea
                     id={`slide-src-${i}`}
-                    rows={3}
+                    rows={2}
                     value={value}
                     onChange={(e) => setSourceTitle(i, e.target.value)}
-                    placeholder="Текст слайда…"
-                    className="min-h-[5.5rem] resize-y rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
+                    placeholder="До двух строк…"
+                    className="min-h-[3.25rem] resize-none rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm leading-snug text-zinc-900 shadow-sm outline-none placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
                   />
                 </div>
               ))}
@@ -628,9 +653,9 @@ export function StorePreviewGrid() {
                     <textarea
                       id={`slide-${lang}-${i}`}
                       readOnly
-                      rows={3}
+                      rows={2}
                       value={value}
-                      className="min-h-[5.5rem] resize-y rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2 text-sm text-zinc-800 outline-none"
+                      className="min-h-[3.25rem] resize-none rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2 text-sm leading-snug text-zinc-800 outline-none"
                     />
                   </div>
                 ))}
@@ -721,19 +746,30 @@ function PreviewRow({
             key={`${idPrefix}-${i}`}
             ref={(el) => registerCardRef(i, el)}
             lang={lang}
-            className="flex flex-col items-center gap-6 rounded-2xl bg-black px-4 py-8 text-white shadow-xl sm:px-5 sm:py-10"
+            className="flex w-full min-w-0 flex-col rounded-2xl bg-black px-3 py-4 text-white shadow-xl sm:px-4 sm:py-5"
+            style={{
+              aspectRatio:
+                variant === "phone"
+                  ? `${EXPORT_SIZE_MOBILE.width} / ${EXPORT_SIZE_MOBILE.height}`
+                  : `${EXPORT_SIZE_TABLET.width} / ${EXPORT_SIZE_TABLET.height}`,
+            }}
           >
-            <p className="min-h-[3.5rem] max-w-[16rem] text-center text-base font-medium leading-snug text-white sm:text-lg sm:leading-snug">
-              {title.trim() || (
-                <span className="text-zinc-500">Слайд {i + 1}</span>
-              )}
-            </p>
-            <DeviceMockup
-              variant={variant}
-              imageSrc={sources[i]}
-              onImageChange={(file) => onImageChange(i, file)}
-              inputId={`${idPrefix}-upload-${i}`}
-            />
+            <div className="flex h-[2lh] w-full shrink-0 items-center justify-center px-1 text-center text-sm font-medium leading-snug text-white sm:text-base">
+              <p className="line-clamp-2 w-full">
+                {title.trim() || (
+                  <span className="text-zinc-500">Слайд {i + 1}</span>
+                )}
+              </p>
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col items-stretch justify-start pt-2">
+              <DeviceMockup
+                variant={variant}
+                layout="fill"
+                imageSrc={sources[i]}
+                onImageChange={(file) => onImageChange(i, file)}
+                inputId={`${idPrefix}-upload-${i}`}
+              />
+            </div>
           </article>
         ))}
       </div>

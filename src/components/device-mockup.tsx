@@ -1,12 +1,35 @@
 "use client";
 
 import Image from "next/image";
+import { useLayoutEffect, useRef, useState } from "react";
+import {
+  EXPORT_SIZE_MOBILE,
+  EXPORT_SIZE_TABLET,
+} from "@/lib/export-dimensions";
+
+const FRAME_BORDER = "#303030";
+
+/** На выгружаемой ширине кадра — заданные px бордера и скругления. */
+const SPECS = {
+  phone: {
+    refWidth: EXPORT_SIZE_MOBILE.width,
+    border: 14,
+    radius: 80,
+  },
+  tablet: {
+    refWidth: EXPORT_SIZE_TABLET.width,
+    border: 16,
+    radius: 40,
+  },
+} as const;
 
 type DeviceMockupProps = {
   variant: "phone" | "tablet";
   imageSrc: string | null;
   onImageChange: (file: File | null) => void;
   inputId: string;
+  /** Вписать рамку в родителя (flex-1): для карточки с aspect как у PNG стора. */
+  layout?: "compact" | "fill";
 };
 
 export function DeviceMockup({
@@ -14,28 +37,72 @@ export function DeviceMockup({
   imageSrc,
   onImageChange,
   inputId,
+  layout = "compact",
 }: DeviceMockupProps) {
   const isPhone = variant === "phone";
-  const frameClass = isPhone
-    ? "w-[min(100%,9.5rem)] sm:w-[10.5rem] aspect-[9/19.5] rounded-[2.25rem] border-[6px] border-[#1a1a1a] sm:border-8 sm:rounded-[2.5rem]"
-    : "w-[min(100%,13rem)] sm:w-[15rem] aspect-[3/4] rounded-[1.75rem] border-[6px] border-[#1a1a1a] sm:rounded-[2rem] sm:border-[7px]";
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [frameStyle, setFrameStyle] = useState<{
+    borderWidth: number;
+    borderRadius: number;
+  }>(() => {
+    const s = isPhone ? SPECS.phone : SPECS.tablet;
+    return {
+      borderWidth: Math.max(0.5, s.border * 0.12),
+      borderRadius: Math.max(4, s.radius * 0.12),
+    };
+  });
+
+  useLayoutEffect(() => {
+    const el = frameRef.current;
+    if (!el) return;
+    const s = isPhone ? SPECS.phone : SPECS.tablet;
+    const update = () => {
+      const w = el.getBoundingClientRect().width;
+      if (w <= 0) return;
+      setFrameStyle({
+        borderWidth: Math.max(0.5, (s.border * w) / s.refWidth),
+        borderRadius: Math.max(0, (s.radius * w) / s.refWidth),
+      });
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [isPhone]);
+
+  const frameLayoutClass =
+    layout === "fill"
+      ? isPhone
+        ? "aspect-[9/19.5] h-full max-h-full w-auto max-w-full min-h-0"
+        : "aspect-[3/4] h-full max-h-full w-auto max-w-full min-h-0"
+      : isPhone
+        ? "w-[min(100%,9.5rem)] sm:w-[10.5rem] aspect-[9/19.5]"
+        : "w-[min(100%,13rem)] sm:w-[15rem] aspect-[3/4]";
+
+  const rootClass =
+    layout === "fill"
+      ? "relative flex h-full min-h-0 w-full flex-col items-center"
+      : "relative flex flex-col items-center";
+
+  const labelClass =
+    layout === "fill"
+      ? "flex h-full min-h-0 w-full cursor-pointer items-start justify-center"
+      : "cursor-pointer";
 
   return (
-    <div className="relative flex flex-col items-center">
-      <label htmlFor={inputId} className="cursor-pointer">
+    <div className={rootClass}>
+      <label htmlFor={inputId} className={labelClass}>
         <span className="sr-only">Загрузить скриншот</span>
         <div
-          className={`${frameClass} flex flex-col overflow-hidden bg-[#0d0d0d] shadow-[0_20px_50px_rgba(0,0,0,0.45)]`}
+          ref={frameRef}
+          className={`${frameLayoutClass} box-border overflow-hidden border-solid bg-[#0d0d0d] shadow-[0_20px_50px_rgba(0,0,0,0.45)]`}
+          style={{
+            borderWidth: frameStyle.borderWidth,
+            borderColor: FRAME_BORDER,
+            borderRadius: frameStyle.borderRadius,
+          }}
         >
-          <div className="flex shrink-0 items-center justify-between px-2.5 pb-1 pt-1.5 text-[10px] font-medium text-white/90 sm:px-3 sm:text-[11px]">
-            <span className="tabular-nums">11:57</span>
-            <div className="flex items-center gap-1 opacity-90">
-              <SignalIcon />
-              <WifiIcon />
-              <BatteryIcon />
-            </div>
-          </div>
-          <div className="relative min-h-0 flex-1 bg-[#111]">
+          <div className="relative h-full w-full bg-[#111]">
             {imageSrc ? (
               <Image
                 src={imageSrc}
@@ -53,9 +120,6 @@ export function DeviceMockup({
               </div>
             )}
           </div>
-          <div className="flex shrink-0 justify-center py-1.5 sm:py-2">
-            <div className="h-1 w-24 rounded-full bg-white/20 sm:w-28" />
-          </div>
         </div>
       </label>
       <input
@@ -70,77 +134,5 @@ export function DeviceMockup({
         }}
       />
     </div>
-  );
-}
-
-function SignalIcon() {
-  return (
-    <svg
-      width="14"
-      height="10"
-      viewBox="0 0 14 10"
-      fill="none"
-      aria-hidden
-      className="text-white"
-    >
-      <path
-        d="M1 9V7M4 9V5M7 9V3M10 9V1M13 9V6"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function WifiIcon() {
-  return (
-    <svg
-      width="14"
-      height="10"
-      viewBox="0 0 14 10"
-      fill="none"
-      aria-hidden
-      className="text-white"
-    >
-      <path
-        d="M1 4c3-3 9-3 12 0M3.5 6.5a5 5 0 018 0M6 8.5h2"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function BatteryIcon() {
-  return (
-    <svg
-      width="22"
-      height="10"
-      viewBox="0 0 22 10"
-      fill="none"
-      aria-hidden
-      className="text-white"
-    >
-      <rect
-        x="0.5"
-        y="1.5"
-        width="18"
-        height="7"
-        rx="1.5"
-        stroke="currentColor"
-        strokeWidth="1"
-        fill="none"
-        opacity="0.9"
-      />
-      <path
-        d="M20 3.5v3"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-      />
-      <rect x="2" y="3" width="14" height="4" rx="0.5" fill="currentColor" />
-    </svg>
   );
 }
