@@ -9,6 +9,12 @@ import {
 
 const FRAME_BORDER = "#303030";
 
+function roundToDevicePixel(value: number): number {
+  if (typeof window === "undefined") return Math.round(value);
+  const dpr = window.devicePixelRatio || 1;
+  return Math.round(value * dpr) / dpr;
+}
+
 /** На выгружаемой ширине кадра — заданные px бордера и скругления. */
 const SPECS = {
   phone: {
@@ -19,7 +25,7 @@ const SPECS = {
   tablet: {
     refWidth: EXPORT_SIZE_TABLET.width,
     border: 16,
-    radius: 40,
+    radius: 46,
   },
 } as const;
 
@@ -47,8 +53,8 @@ export function DeviceMockup({
   }>(() => {
     const s = isPhone ? SPECS.phone : SPECS.tablet;
     return {
-      borderWidth: Math.max(0.5, s.border * 0.12),
-      borderRadius: Math.max(4, s.radius * 0.12),
+      borderWidth: roundToDevicePixel(Math.max(1, s.border * 0.12)),
+      borderRadius: roundToDevicePixel(Math.max(4, s.radius * 0.12)),
     };
   });
 
@@ -60,8 +66,8 @@ export function DeviceMockup({
       const w = el.getBoundingClientRect().width;
       if (w <= 0) return;
       setFrameStyle({
-        borderWidth: Math.max(0.5, (s.border * w) / s.refWidth),
-        borderRadius: Math.max(0, (s.radius * w) / s.refWidth),
+        borderWidth: roundToDevicePixel(Math.max(1, (s.border * w) / s.refWidth)),
+        borderRadius: roundToDevicePixel(Math.max(0, (s.radius * w) / s.refWidth)),
       });
     };
     update();
@@ -95,10 +101,8 @@ export function DeviceMockup({
         <span className="sr-only">Загрузить скриншот</span>
         <div
           ref={frameRef}
-          className={`${frameLayoutClass} box-border overflow-hidden border-solid bg-[#0d0d0d] shadow-[0_20px_50px_rgba(0,0,0,0.45)]`}
+          className={`${frameLayoutClass} relative box-border overflow-hidden bg-[#0d0d0d] shadow-[0_20px_50px_rgba(0,0,0,0.45)]`}
           style={{
-            borderWidth: frameStyle.borderWidth,
-            borderColor: FRAME_BORDER,
             borderRadius: frameStyle.borderRadius,
           }}
         >
@@ -120,6 +124,15 @@ export function DeviceMockup({
               </div>
             )}
           </div>
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 box-border border-solid"
+            style={{
+              borderWidth: frameStyle.borderWidth,
+              borderColor: FRAME_BORDER,
+              borderRadius: frameStyle.borderRadius,
+            }}
+          />
         </div>
       </label>
       <input
