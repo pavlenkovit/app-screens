@@ -466,6 +466,42 @@ export function StorePreviewGrid() {
     }
   }, []);
 
+  const handleResetAll = useCallback(() => {
+    const next = defaultFullState();
+    setExportError(null);
+    setTranslateError(null);
+    setTranslating(false);
+    setSourceLang(next.sourceLang);
+    setTargetLangs(next.targetLangs);
+    setTitles(next.titles);
+    setTranslateFingerprint(next.translateFingerprint);
+
+    for (const lang of APP_LANG_CODES) {
+      mobileBlobsRef.current[lang] = Array.from(
+        { length: SLOT_COUNT },
+        () => null,
+      );
+      tabletBlobsRef.current[lang] = Array.from(
+        { length: SLOT_COUNT },
+        () => null,
+      );
+    }
+
+    setMobileSrcByLang((prev) => {
+      for (const lang of APP_LANG_CODES) {
+        prev[lang].forEach((u) => u && URL.revokeObjectURL(u));
+      }
+      return emptySrcByLang();
+    });
+
+    setTabletSrcByLang((prev) => {
+      for (const lang of APP_LANG_CODES) {
+        prev[lang].forEach((u) => u && URL.revokeObjectURL(u));
+      }
+      return emptySrcByLang();
+    });
+  }, []);
+
   const textColCount = 1 + targetLangs.length;
 
   /** Секции превью: сначала язык оригинала, остальные — в базовом порядке. */
@@ -492,14 +528,24 @@ export function StorePreviewGrid() {
           для каждой локали.
         </p>
         <div className="mt-6 flex flex-col items-center gap-2">
-          <button
-            type="button"
-            onClick={handleExportAll}
-            disabled={exporting}
-            className="rounded-full bg-zinc-900 px-6 py-2.5 text-sm font-medium text-white shadow-md transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {exporting ? "Собираем PNG…" : "Скачать все (ZIP)"}
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={handleExportAll}
+              disabled={exporting}
+              className="rounded-full bg-zinc-900 px-6 py-2.5 text-sm font-medium text-white shadow-md transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {exporting ? "Собираем PNG…" : "Скачать все (ZIP)"}
+            </button>
+            <button
+              type="button"
+              onClick={handleResetAll}
+              disabled={exporting}
+              className="rounded-full border border-zinc-300 bg-white px-6 py-2.5 text-sm font-medium text-zinc-900 shadow-sm transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Сбросить всё
+            </button>
+          </div>
           {exportError ? (
             <p className="max-w-md text-center text-sm text-red-600" role="alert">
               {exportError}
