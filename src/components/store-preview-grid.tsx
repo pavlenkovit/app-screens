@@ -29,8 +29,8 @@ import { DeviceMockup } from "./device-mockup";
 
 const SLOT_COUNT = SCREENS_SLOT_COUNT;
 
-/** На карточке и в PNG — не больше двух строк (по `\n`); блок заголовка фиксированной высоты. */
-const SLIDE_TITLE_MAX_LINES = 2;
+/** На карточке и в PNG — не больше трёх строк (по `\n`); блок заголовка фиксированной высоты. */
+const SLIDE_TITLE_MAX_LINES = 3;
 
 function clampSlideTitleLines(text: string): string {
   const lines = text.split(/\r?\n/);
@@ -673,10 +673,10 @@ export function StorePreviewGrid() {
                   </label>
                   <textarea
                     id={`slide-src-${i}`}
-                    rows={2}
+                    rows={3}
                     value={value}
                     onChange={(e) => setSourceTitle(i, e.target.value)}
-                    placeholder="До двух строк…"
+                    placeholder="До трёх строк…"
                     className="min-h-[3.25rem] resize-none rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm leading-snug text-zinc-900 shadow-sm outline-none placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
                   />
                 </div>
@@ -699,7 +699,7 @@ export function StorePreviewGrid() {
                     <textarea
                       id={`slide-${lang}-${i}`}
                       readOnly
-                      rows={2}
+                    rows={3}
                       value={value}
                       className="min-h-[3.25rem] resize-none rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2 text-sm leading-snug text-zinc-800 outline-none"
                     />
@@ -800,8 +800,8 @@ function PreviewRow({
                   : `${EXPORT_SIZE_TABLET.width} / ${EXPORT_SIZE_TABLET.height}`,
             }}
           >
-            <div className="flex h-[2lh] w-full shrink-0 items-center justify-center px-1 text-center text-sm font-medium leading-snug text-white sm:text-base">
-              <p className="line-clamp-2 w-full">
+            <div className="flex h-[3lh] w-full shrink-0 items-center justify-center px-1 text-center text-sm font-medium leading-snug text-white sm:text-base">
+              <p className="line-clamp-3 w-full">
                 {title.trim() || (
                   <span className="text-zinc-500">Слайд {i + 1}</span>
                 )}
