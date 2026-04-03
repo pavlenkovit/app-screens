@@ -7,7 +7,7 @@ import {
   EXPORT_SIZE_TABLET,
 } from "@/lib/export-dimensions";
 
-const FRAME_BORDER = "#303030";
+const FRAME_BORDER = "#1E1A2E";
 
 function roundToDevicePixel(value: number): number {
   if (typeof window === "undefined") return Math.round(value);
